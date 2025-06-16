@@ -6,143 +6,191 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-
-    header {
-      background-color: #222;
-      color: #fff;
-      padding: 20px;
-      text-align: center;
-      font-size: 24px;
-      font-weight: bold;
-    }
-
-    section {
       margin: 20px;
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      background: #f5f5f5;
     }
-
-    h2 {
-      font-size: 20px;
-      border-bottom: 2px solid #ccc;
-      padding-bottom: 5px;
-      margin-bottom: 10px;
+    h1, h2 {
+      color: #333;
     }
-
+    .secao {
+      margin-bottom: 40px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
-
     th, td {
-      padding: 10px;
       border: 1px solid #ccc;
-      text-align: left;
+      padding: 6px;
+      text-align: center;
     }
-
     th {
-      background-color: #333;
+      background: #eee;
+    }
+    .verde { background-color: #c8e6c9; }
+    .amarelo { background-color: #fff9c4; }
+    .laranja { background-color: #ffe0b2; }
+
+    #busca {
+      padding: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .bloco {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .item {
+      padding: 8px 12px;
+      border-radius: 5px;
+      background: #e0e0e0;
+      font-weight: bold;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 8px 14px;
+      cursor: pointer;
+      background-color: #1976d2;
       color: white;
-    }
-
-    .green {
-      background-color: #4CAF50;
-      color: white;
-    }
-
-    .yellow {
-      background-color: #FFEB3B;
-      color: #333;
-    }
-
-    .orange {
-      background-color: #FF9800;
-      color: white;
-    }
-
-    .loading {
-      font-style: italic;
-      color: gray;
+      border: none;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
+  <h1>🧭 Ascendente Crypto</h1>
 
-  <header>🧭 Ascendente Crypto</header>
+  <div class="secao">
+    <h2>🔍 Buscar Criptomoeda</h2>
+    <input type="text" id="busca" placeholder="Digite o símbolo ou ID da moeda..." onkeyup="filtrarTabela()">
+  </div>
 
-  <section id="top10">
-    <h2>🏆 Top 10 Criptomoedas com Maiores Pontuações</h2>
-    <div id="top10-tabela" class="loading">Carregando dados...</div>
-  </section>
+  <div class="secao">
+    <h2>🎨 Destaques por Cor (5 de cada)</h2>
+    <div class="bloco" id="blocoCores"></div>
+  </div>
 
-  <section id="top5">
-    <h2>🎯 Top 5 Criptomoedas de Cada Cor</h2>
-    <div id="top5-tabela" class="loading">Carregando dados...</div>
-  </section>
+  <div class="secao">
+    <h2>📈 Top 5 em Ascensão Contínua</h2>
+    <div class="bloco" id="blocoAscensao"></div>
+  </div>
 
-  <section id="statusRanking">
-    <h2>📈 Moedas com Subidas Consecutivas</h2>
-    <div id="status-tabela" class="loading">Carregando dados...</div>
-  </section>
+  <div class="secao">
+    <h2>📊 Tabela Completa – Top Subidas</h2>
+    <button onclick="exportarPDF()">Exportar PDF</button>
+    <table id="topSubidas">
+      <thead>
+        <tr>
+          <th>ID</th><th>Símbolo</th><th>Preço</th><th>Link</th>
+          <th>Ranking Anterior</th><th>Diferença</th><th>Ranking Atual</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    function carregarDados() {
-      google.script.run.withSuccessHandler(renderTop10).getTop10Pontuacoes();
-      google.script.run.withSuccessHandler(renderTop5).getTop5PorCor();
-      google.script.run.withSuccessHandler(renderStatus).getMoedasEmAlta();
+    const URL = "https://script.google.com/macros/s/AKfycbzE7G0AcCkKXSkBJ2L7Il9HwN4IeGoD91vpIu29Bsgch9NBzO0HpbbfJAh4vPU4FnTu/exec";
+
+    fetch(URL)
+      .then(res => res.json())
+      .then(dados => {
+        preencherTabela(dados);
+        preencherCores(dados);
+        preencherAscensao(dados);
+      });
+
+    function corClass(dif) {
+      if (dif >= 10) return "verde";
+      if (dif >= 5) return "amarelo";
+      if (dif > 0) return "laranja";
+      return "";
     }
 
-    function renderTop10(dados) {
-      renderTabela(dados, 'top10-tabela');
-    }
-
-    function renderTop5(dados) {
-      renderTabela(dados, 'top5-tabela');
-    }
-
-    function renderStatus(dados) {
-      renderTabela(dados, 'status-tabela');
-    }
-
-    function renderTabela(dados, idDiv) {
-      if (!dados || dados.length === 0) {
-        document.getElementById(idDiv).innerHTML = "<em>Nenhum dado disponível</em>";
-        return;
+    function preencherTabela(moedas) {
+      const corpo = document.querySelector("#topSubidas tbody");
+      corpo.innerHTML = "";
+      for (const m of moedas) {
+        if (m.diferenca <= 0) continue;
+        const linha = document.createElement("tr");
+        linha.className = corClass(m.diferenca);
+        linha.innerHTML = `
+          <td>${m.id}</td>
+          <td>${m.simbolo}</td>
+          <td>$${m.preco.toFixed(4)}</td>
+          <td><a href="${m.link}" target="_blank">🔗</a></td>
+          <td>${m.rankingAnterior || "-"}</td>
+          <td>${m.diferenca}</td>
+          <td>${m.rankingAtual}</td>
+          <td>${m.status || ""}</td>
+        `;
+        corpo.appendChild(linha);
       }
-
-      let html = "<table><thead><tr>";
-      for (let col of dados[0]) {
-        html += `<th>${col}</th>`;
-      }
-      html += "</tr></thead><tbody>";
-
-      for (let i = 1; i < dados.length; i++) {
-        html += "<tr>";
-        for (let val of dados[i]) {
-          let estilo = "";
-          if (typeof val === 'string') {
-            if (val.includes("🟢")) estilo = ' class="green"';
-            else if (val.includes("🟡")) estilo = ' class="yellow"';
-            else if (val.includes("🟠")) estilo = ' class="orange"';
-          }
-          html += `<td${estilo}>${val}</td>`;
-        }
-        html += "</tr>";
-      }
-
-      html += "</tbody></table>";
-      document.getElementById(idDiv).innerHTML = html;
     }
 
-    window.onload = carregarDados;
+    function preencherCores(moedas) {
+      const bloco = document.getElementById("blocoCores");
+      const verde = moedas.filter(m => m.diferenca >= 10).slice(0, 5);
+      const amarelo = moedas.filter(m => m.diferenca >= 5 && m.diferenca < 10).slice(0, 5);
+      const laranja = moedas.filter(m => m.diferenca > 0 && m.diferenca < 5).slice(0, 5);
+
+      [...verde, ...amarelo, ...laranja].forEach(m => {
+        const div = document.createElement("div");
+        div.className = "item " + corClass(m.diferenca);
+        div.textContent = `${m.simbolo} (${m.diferenca})`;
+        bloco.appendChild(div);
+      });
+    }
+
+    function preencherAscensao(moedas) {
+      const bloco = document.getElementById("blocoAscensao");
+      const constantes = moedas
+        .filter(m => m.status && m.status.includes("↑↑"))
+        .sort((a, b) => b.status.length - a.status.length)
+        .slice(0, 5);
+
+      constantes.forEach(m => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.textContent = `${m.simbolo} ${m.status}`;
+        bloco.appendChild(div);
+      });
+    }
+
+    function exportarPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("🧭 Ascendente Crypto – Top Subidas", 10, 10);
+      const linhas = [];
+      const linhasTabela = document.querySelectorAll("#topSubidas tbody tr");
+      linhasTabela.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        linhas.push(Array.from(cols).map(td => td.innerText));
+      });
+      doc.autoTable({
+        head: [['ID', 'Símbolo', 'Preço', 'Link', 'Ranking Anterior', 'Diferença', 'Ranking Atual', 'Status']],
+        body: linhas,
+        startY: 20,
+        styles: { fontSize: 7 }
+      });
+      doc.save("top_subidas.pdf");
+    }
+
+    function filtrarTabela() {
+      const busca = document.getElementById("busca").value.toUpperCase();
+      const linhas = document.querySelectorAll("#topSubidas tbody tr");
+      linhas.forEach(linha => {
+        const simbolo = linha.children[1].innerText.toUpperCase();
+        const id = linha.children[0].innerText.toUpperCase();
+        linha.style.display = simbolo.includes(busca) || id.includes(busca) ? "" : "none";
+      });
+    }
   </script>
-
 </body>
 </html>
