@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>🧭 Ascendente Crypto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #222;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    section {
+      margin: 20px;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      font-size: 20px;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+
+    th {
+      background-color: #333;
+      color: white;
+    }
+
+    .green {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .yellow {
+      background-color: #FFEB3B;
+      color: #333;
+    }
+
+    .orange {
+      background-color: #FF9800;
+      color: white;
+    }
+
+    .loading {
+      font-style: italic;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+
+  <header>🧭 Ascendente Crypto</header>
+
+  <section id="top10">
+    <h2>🏆 Top 10 Criptomoedas com Maiores Pontuações</h2>
+    <div id="top10-tabela" class="loading">Carregando dados...</div>
+  </section>
+
+  <section id="top5">
+    <h2>🎯 Top 5 Criptomoedas de Cada Cor</h2>
+    <div id="top5-tabela" class="loading">Carregando dados...</div>
+  </section>
+
+  <section id="statusRanking">
+    <h2>📈 Moedas com Subidas Consecutivas</h2>
+    <div id="status-tabela" class="loading">Carregando dados...</div>
+  </section>
+
+  <script>
+    function carregarDados() {
+      google.script.run.withSuccessHandler(renderTop10).getTop10Pontuacoes();
+      google.script.run.withSuccessHandler(renderTop5).getTop5PorCor();
+      google.script.run.withSuccessHandler(renderStatus).getMoedasEmAlta();
+    }
+
+    function renderTop10(dados) {
+      renderTabela(dados, 'top10-tabela');
+    }
+
+    function renderTop5(dados) {
+      renderTabela(dados, 'top5-tabela');
+    }
+
+    function renderStatus(dados) {
+      renderTabela(dados, 'status-tabela');
+    }
+
+    function renderTabela(dados, idDiv) {
+      if (!dados || dados.length === 0) {
+        document.getElementById(idDiv).innerHTML = "<em>Nenhum dado disponível</em>";
+        return;
+      }
+
+      let html = "<table><thead><tr>";
+      for (let col of dados[0]) {
+        html += `<th>${col}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+
+      for (let i = 1; i < dados.length; i++) {
+        html += "<tr>";
+        for (let val of dados[i]) {
+          let estilo = "";
+          if (typeof val === 'string') {
+            if (val.includes("🟢")) estilo = ' class="green"';
+            else if (val.includes("🟡")) estilo = ' class="yellow"';
+            else if (val.includes("🟠")) estilo = ' class="orange"';
+          }
+          html += `<td${estilo}>${val}</td>`;
+        }
+        html += "</tr>";
+      }
+
+      html += "</tbody></table>";
+      document.getElementById(idDiv).innerHTML = html;
+    }
+
+    window.onload = carregarDados;
+  </script>
+
+</body>
+</html>
