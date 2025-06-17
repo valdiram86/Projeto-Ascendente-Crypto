@@ -7,27 +7,10 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
     h1 { color: #333; }
-    input, button, select {
-      margin: 5px;
-      padding: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: #fff;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-    th {
-      background-color: #333;
-      color: white;
-      cursor: pointer;
-    }
-    .highlight { font-weight: bold; background-color: #ffffcc; }
+    input, button, select { margin: 5px; padding: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #333; color: white; cursor: pointer; }
     .green { background-color: #c8e6c9; }
     .yellow { background-color: #fff9c4; }
     .orange { background-color: #ffe0b2; }
@@ -38,142 +21,105 @@
   <h1>🧭 Ascendente Crypto</h1>
 
   <div>
-    <label>🔎 Buscar por símbolo:</label>
-    <input type="text" id="buscaSimbolo" placeholder="Ex: BTC">
-    
-    <label>Ranking mínimo:</label>
-    <input type="number" id="minRanking" min="1" placeholder="Ex: 1">
-    
-    <label>Ranking máximo:</label>
-    <input type="number" id="maxRanking" placeholder="Ex: 100">
-    
-    <button onclick="filtrarTabela()">Filtrar</button>
-    <button onclick="limparFiltros()">Limpar</button>
-  </div>
-
-  <div>
-    <button onclick="exportarPDF()">Exportar PDF</button>
-  </div>
-
-  <div>
-    <h2>🔥 Top 5 por Cor (Verde, Amarelo, Laranja)</h2>
-    <ul id="topCores"></ul>
-
-    <h2>🚀 Avanço Contínuo por Atualizações</h2>
-    <ul id="topAvanco"></ul>
+    <label>🔍 Símbolo:</label>
+    <input type="text" id="buscaSimbolo" oninput="filtrarTabela()" placeholder="Ex: BTC">
+    <label>Ranking min:</label>
+    <input type="number" id="minRanking" oninput="filtrarTabela()" placeholder="1">
+    <label>Ranking max:</label>
+    <input type="number" id="maxRanking" oninput="filtrarTabela()" placeholder="100">
+    <button onclick="resetFiltros()">Limpar filtros</button>
+    <button onclick="exportPDF()">Exportar PDF</button>
   </div>
 
   <table id="tabelaCriptos">
     <thead>
       <tr>
-        <th onclick="ordenarPorColuna(0)">ID</th>
-        <th onclick="ordenarPorColuna(1)">Símbolo</th>
-        <th onclick="ordenarPorColuna(2)">Preço</th>
-        <th onclick="ordenarPorColuna(3)">Link</th>
-        <th onclick="ordenarPorColuna(4)">Ranking Anterior</th>
-        <th onclick="ordenarPorColuna(5)">Diferença</th>
-        <th onclick="ordenarPorColuna(6)">Ranking Atual</th>
-        <th onclick="ordenarPorColuna(7)">Status</th>
+        <th onclick="ordenar(0)">ID</th>
+        <th onclick="ordenar(1)">Símbolo</th>
+        <th onclick="ordenar(2)">Preço</th>
+        <th>Link</th>
+        <th onclick="ordenar(4)">Ranking Anterior</th>
+        <th onclick="ordenar(5)">Diferença</th>
+        <th onclick="ordenar(6)">Ranking Atual</th>
+        <th onclick="ordenar(7)">Status</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    let dadosOriginais = [];
-    let ordemAscendente = true;
+    const URL = 'https://script.google.com/macros/s/AKfycbwuJPGDNy0bpnLo3x78SXyQqsL49Wy6O2keJwl0v2Z6Tb1Bf8zzIn5_Hep-8mYQqfVF/exec';
+    let dados = [];
+    let asc = true;
 
-    async function carregarDados() {
-      const resposta = await fetch('https://script.google.com/macros/s/AKfycbwuJPGDNy0bpnLo3x78SXyQqsL49Wy6O2keJwl0v2Z6Tb1Bf8zzIn5_Hep-8mYQqfVF/exec');
-      const dados = await resposta.json();
-      dadosOriginais = dados;
+    async function carregar() {
+      const resp = await fetch(URL);
+      dados = await resp.json();
       preencherTabela(dados);
-      preencherTops(dados);
     }
 
-    function preencherTabela(dados) {
-      const corpo = document.querySelector('#tabelaCriptos tbody');
-      corpo.innerHTML = '';
-      dados.forEach(linha => {
+    function preencherTabela(arr) {
+      const tbody = document.querySelector('#tabelaCriptos tbody');
+      tbody.innerHTML = '';
+      arr.forEach(l => {
+        if (l.diferenca <= 0) return;
         const tr = document.createElement('tr');
-        linha.forEach((valor, i) => {
-          const td = document.createElement('td');
-          td.textContent = valor;
-          if (i === 5 && valor > 0) {
-            if (valor >= 10) td.className = 'green';
-            else if (valor >= 5) td.className = 'yellow';
-            else td.className = 'orange';
-          }
-          if (i === 3) {
-            const a = document.createElement('a');
-            a.href = valor;
-            a.target = "_blank";
-            a.textContent = '🔗';
-            td.textContent = '';
-            td.appendChild(a);
-          }
-          tr.appendChild(td);
-        });
-        corpo.appendChild(tr);
+        tr.innerHTML = `
+          <td>${l.id}</td>
+          <td>${l.simbolo}</td>
+          <td>$${parseFloat(l.preco).toFixed(4)}</td>
+          <td><a href="${l.link}" target="_blank">🔗</a></td>
+          <td>${l.rankingAnterior ?? '-'}</td>
+          <td class="${l.diferenca>=10?'green':l.diferenca>=5?'yellow':'orange'}">${l.diferenca}</td>
+          <td>${l.rankingAtual}</td>
+          <td>${l.status}</td>
+        `;
+        tbody.appendChild(tr);
       });
     }
 
     function filtrarTabela() {
-      const simbolo = document.getElementById('buscaSimbolo').value.toUpperCase();
-      const minRank = parseInt(document.getElementById('minRanking').value);
-      const maxRank = parseInt(document.getElementById('maxRanking').value);
-
-      const filtrado = dadosOriginais.filter(row => {
-        const simboloOK = !simbolo || row[1].toUpperCase().includes(simbolo);
-        const rankAtual = parseInt(row[6]);
-        const rankOK = (!minRank || rankAtual >= minRank) && (!maxRank || rankAtual <= maxRank);
-        return simboloOK && rankOK;
-      });
-
+      const sim = document.getElementById('buscaSimbolo').value.toUpperCase();
+      const min = parseInt(document.getElementById('minRanking').value) || -Infinity;
+      const max = parseInt(document.getElementById('maxRanking').value) || Infinity;
+      const filtrado = dados.filter(l => l.diferenca > 0
+        && l.simbolo.includes(sim)
+        && l.rankingAtual >= min && l.rankingAtual <= max);
       preencherTabela(filtrado);
     }
 
-    function limparFiltros() {
+    function resetFiltros() {
       document.getElementById('buscaSimbolo').value = '';
       document.getElementById('minRanking').value = '';
       document.getElementById('maxRanking').value = '';
-      preencherTabela(dadosOriginais);
+      preencherTabela(dados);
     }
 
-    function ordenarPorColuna(indice) {
-      ordemAscendente = !ordemAscendente;
-      const ordenado = [...dadosOriginais].sort((a, b) => {
-        if (typeof a[indice] === 'number') {
-          return ordemAscendente ? a[indice] - b[indice] : b[indice] - a[indice];
-        }
-        return ordemAscendente
-          ? String(a[indice]).localeCompare(String(b[indice]))
-          : String(b[indice]).localeCompare(String(a[indice]));
+    function ordenar(col) {
+      asc = !asc;
+      dados.sort((a,b) => {
+        const va = typeof a[col] === 'number' ? a[col] : String(a[col]);
+        const vb = typeof b[col] === 'number' ? b[col] : String(b[col]);
+        return asc ? (va > vb ? 1 : va < vb ? -1 : 0) : (vb > va ? 1 : vb < va ? -1 : 0);
       });
-      preencherTabela(ordenado);
+      preencherTabela(dados);
     }
 
-    function preencherTops(dados) {
-      const ulCores = document.getElementById('topCores');
-      const ulAvanco = document.getElementById('topAvanco');
-
-      const verdes = dados.filter(l => l[5] >= 10).slice(0, 5);
-      const amarelos = dados.filter(l => l[5] >= 5 && l[5] < 10).slice(0, 5);
-      const laranjas = dados.filter(l => l[5] > 0 && l[5] < 5).slice(0, 5);
-
-      ulCores.innerHTML = [...verdes, ...amarelos, ...laranjas].map(l => `<li>${l[1]} (${l[5]} pontos)</li>`).join('');
-
-      const avanços = dados.filter(l => l[7] && l[7].toLowerCase().includes("subindo"))
-                           .sort((a, b) => b[5] - a[5])
-                           .slice(0, 5);
-      ulAvanco.innerHTML = avanços.map(l => `<li>${l[1]} (⏫ ${l[5]} pontos)</li>`).join('');
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text('🧭 Ascendente Crypto – Top Subidas', 10, 10);
+      const table = document.querySelectorAll('#tabelaCriptos tbody tr');
+      const body = Array.from(table).map(row => Array.from(row.children).map(td => td.innerText));
+      doc.autoTable({
+        head: [['ID','Símbolo','Preço','Ranking Ant','Diferença','Ranking Atual','Status']],
+        body, startY: 20, styles: { fontSize: 8 }
+      });
+      doc.save('top_subidas.pdf');
     }
 
-    function exportarPDF() {
-      window.print();
-    }
-
-    carregarDados();
+    carregar();
   </script>
 </body>
 </html>
