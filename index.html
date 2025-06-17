@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-    h1 { color: #333; margin-bottom: 20px; }
+    h1, h3 { color: #333; margin-bottom: 10px; }
     .filtros, .anotacoes { margin-bottom: 15px; }
     .filtros input { margin-right: 10px; padding: 6px; width: 150px; }
-    .bloco { display: flex; gap: 10px; margin-bottom: 20px; }
+    .bloco { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
     .item { padding: 8px 12px; border-radius: 4px; font-weight: bold; }
     .green { background: #c8e6c9; }
     .yellow { background: #fff9c4; }
@@ -32,12 +32,20 @@
     <button onclick="resetarFiltros()">Limpar</button>
   </div>
 
-  <div class="bloco" id="blocoCores">
-    <!-- Top 5 por cor -->
+  <div>
+    <h3>🎨 Top 5 por Cor</h3>
+    <div class="bloco" id="blocoCoresVerde"></div>
+    <div class="bloco" id="blocoCoresRestante"></div>
   </div>
 
-  <div class="bloco" id="blocoAvanco">
-    <!-- Top 5 avanços consecutivos -->
+  <div>
+    <h3>🔥 Top Destaques (Avanços Consecutivos)</h3>
+    <div class="bloco" id="blocoAvanco"></div>
+  </div>
+
+  <div>
+    <h3>📈 Top 5 Avanço de Ranking</h3>
+    <div class="bloco" id="blocoRanking"></div>
   </div>
 
   <table id="tabela" class="display nowrap" style="width:100%">
@@ -75,28 +83,48 @@
     });
 
     function montarPainel() {
-      const verde = dadosOriginais.filter(m => m.diferenca >= 10).slice(0,5);
-      const amarelo = dadosOriginais.filter(m => m.diferenca >= 5 && m.diferenca < 10).slice(0,5);
-      const laranja = dadosOriginais.filter(m => m.diferenca > 0 && m.diferenca < 5).slice(0,5);
-      
-      const blocoC = document.getElementById('blocoCores');
-      [...verde, ...amarelo, ...laranja].forEach(m => {
+      const verde = dadosOriginais.filter(m => m.diferenca >= 10).slice(0, 5);
+      const amarelo = dadosOriginais.filter(m => m.diferenca >= 5 && m.diferenca < 10).slice(0, 5);
+      const laranja = dadosOriginais.filter(m => m.diferenca > 0 && m.diferenca < 5).slice(0, 5);
+
+      const blocoVerde = document.getElementById('blocoCoresVerde');
+      verde.forEach(m => {
         const div = document.createElement('div');
-        div.className = 'item ' + (m.diferenca>=10?'green':m.diferenca>=5?'yellow':'orange');
+        div.className = 'item green';
         div.textContent = `${m.simbolo} (${m.diferenca})`;
-        blocoC.appendChild(div);
+        blocoVerde.appendChild(div);
       });
 
-      const avancos = dadosOriginais
-        .filter(m => m.status && m.status.length > 1)
-        .sort((a,b) => b.status.length - a.status.length)
-        .slice(0,5);
-      const blocoA = document.getElementById('blocoAvanco');
-      avancos.forEach(m => {
+      const blocoRestante = document.getElementById('blocoCoresRestante');
+      [...amarelo, ...laranja].forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'item ' + (m.diferenca >= 5 ? 'yellow' : 'orange');
+        div.textContent = `${m.simbolo} (${m.diferenca})`;
+        blocoRestante.appendChild(div);
+      });
+
+      const destaques = dadosOriginais
+        .filter(m => typeof m.status === 'string' && m.status.includes('🔼'))
+        .sort((a, b) => b.status.length - a.status.length)
+        .slice(0, 5);
+      const blocoAvanco = document.getElementById('blocoAvanco');
+      destaques.forEach(m => {
         const div = document.createElement('div');
         div.className = 'item';
         div.textContent = `${m.simbolo} ${m.status}`;
-        blocoA.appendChild(div);
+        blocoAvanco.appendChild(div);
+      });
+
+      const topRanking = [...dadosOriginais]
+        .sort((a, b) => b.diferenca - a.diferenca)
+        .filter(m => m.diferenca > 0)
+        .slice(0, 5);
+      const blocoRanking = document.getElementById('blocoRanking');
+      topRanking.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = `${m.simbolo} (+${m.diferenca})`;
+        blocoRanking.appendChild(div);
       });
     }
 
