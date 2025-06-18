@@ -3,54 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🧭 Ascendente Crypto</title>
+  <title>📈 Top Subidas Crypto</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
     h1, h3 { color: #333; margin-bottom: 10px; }
     .filtros input { margin-right: 10px; padding: 6px; width: 150px; }
-    .bloco { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-    .item { padding: 8px 12px; border-radius: 4px; font-weight: bold; }
-    .green { background: #c8e6c9; }
-    .yellow { background: #fff9c4; }
-    .orange { background: #ffe0b2; }
     .anotacoes textarea { width: 100%; height: 80px; padding: 6px; }
-    #tabelaPrincipal_wrapper, #tabelaTopSubidas_wrapper {
-      background: white; padding: 10px; border-radius: 4px; margin-top: 30px;
+    #tabelaTopSubidas_wrapper {
+      background: white; padding: 10px; border-radius: 4px; margin-top: 20px;
     }
   </style>
 </head>
 <body>
 
-  <h1>🧭 Ascendente Crypto</h1>
+  <h1>📈 Top Subidas (↑ 5%+)</h1>
 
-  <h3>🧩 Aba Principal</h3>
-  <div class="filtros">
-    <input type="text" id="filtroSimboloPrincipal" placeholder="Símbolo ou ID">
-    <input type="number" id="filtroMinPrincipal" placeholder="Min Ranking">
-    <input type="number" id="filtroMaxPrincipal" placeholder="Max Ranking">
-    <button onclick="aplicarFiltros('Principal')">Filtrar</button>
-    <button onclick="resetarFiltros('Principal')">Limpar</button>
-  </div>
-  <table id="tabelaPrincipal" class="display nowrap" style="width:100%">
-    <thead>
-      <tr>
-        <th>ID</th><th>Símbolo</th><th>Preço</th><th>Link</th>
-        <th>Ranking Anterior</th><th>Diferença</th><th>Ranking Atual</th><th>Status</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h3>📊 Aba TopSubidas (↑ 5%+)</h3>
   <div class="filtros">
     <input type="text" id="filtroSimboloTop" placeholder="Símbolo ou ID">
     <input type="number" id="filtroMinTop" placeholder="Min Ranking">
     <input type="number" id="filtroMaxTop" placeholder="Max Ranking">
-    <button onclick="aplicarFiltros('TopSubidas')">Filtrar</button>
-    <button onclick="resetarFiltros('TopSubidas')">Limpar</button>
+    <button onclick="aplicarFiltros()">Filtrar</button>
+    <button onclick="resetarFiltros()">Limpar</button>
   </div>
+
   <table id="tabelaTopSubidas" class="display nowrap" style="width:100%">
     <thead>
       <tr>
@@ -73,21 +50,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 
   <script>
-    const API = 'https://script.google.com/macros/s/AKfycbzmblBqPXtJ1nThn4nuz3vVaRqdoQtvt8Pr5s4zvXJSPGuXpFdUIv93fZYKPLYP4dd1/exec';
-    let dados = {}, tabelas = {};
+    const API = 'https://script.google.com/macros/s/AKfycbziGJcWeFb9-c2ptHpcc0JR3pbzhkioh5klOVm2-3sgHHMxK0R0_EgM7ofVFFgUL0Ey/exec';
+    let tabela;
 
     $(document).ready(async () => {
       const resposta = await fetch(API);
-      dados = await resposta.json();
-      carregarTabela('Principal');
-      carregarTabela('TopSubidas');
+      const dados = await resposta.json();
+      carregarTabela(dados.TopSubidas);
       carregarNotas();
     });
 
-    function carregarTabela(aba) {
-      const idTabela = aba === 'Principal' ? '#tabelaPrincipal' : '#tabelaTopSubidas';
-      tabelas[aba] = $(idTabela).DataTable({
-        data: dados[aba],
+    function carregarTabela(data) {
+      tabela = $('#tabelaTopSubidas').DataTable({
+        data: data,
         columns: [
           { data: 'id' },
           { data: 'simbolo' },
@@ -104,44 +79,39 @@
         buttons: ['csvHtml5', 'excelHtml5'],
         ordering: true,
         paging: false,
-        info: false,
-        createdRow: (row, m) => {
-          if (m.diferenca >= 10) $(row).addClass('green');
-          else if (m.diferenca >= 5) $(row).addClass('yellow');
-          else $(row).addClass('orange');
-        }
+        info: false
       });
     }
 
-    function aplicarFiltros(aba) {
-      const sim = $(`#filtroSimbolo${aba}`).val().toUpperCase();
-      const min = parseInt($(`#filtroMin${aba}`).val()) || -Infinity;
-      const max = parseInt($(`#filtroMax${aba}`).val()) || Infinity;
-      const tabela = tabelas[aba];
-      tabela.column(1).search(sim);
-      tabela.draw();
-      tabela.rows().every(rowIdx => {
-        const data = tabela.row(rowIdx).data();
-        if (data.rankingAtual < min || data.rankingAtual > max) {
-          $(tabela.row(rowIdx).node()).hide();
-        } else {
-          $(tabela.row(rowIdx).node()).show();
-        }
+    function aplicarFiltros() {
+      const simbolo = $('#filtroSimboloTop').val().toUpperCase();
+      const minRanking = parseInt($('#filtroMinTop').val()) || -Infinity;
+      const maxRanking = parseInt($('#filtroMaxTop').val()) || Infinity;
+
+      tabela.column(1).search(simbolo).draw();
+
+      tabela.rows().every(function() {
+        const data = this.data();
+        const visible = data.rankingAtual >= minRanking && data.rankingAtual <= maxRanking;
+        $(this.node()).toggle(visible);
       });
     }
 
-    function resetarFiltros(aba) {
-      $(`#filtroSimbolo${aba}, #filtroMin${aba}, #filtroMax${aba}`).val('');
-      const tabela = tabelas[aba];
+    function resetarFiltros() {
+      $('#filtroSimboloTop').val('');
+      $('#filtroMinTop').val('');
+      $('#filtroMaxTop').val('');
       tabela.search('').columns().search('').draw();
-      tabela.rows().every(rowIdx => $(tabela.row(rowIdx).node()).show());
+      tabela.rows().every(function() {
+        $(this.node()).show();
+      });
     }
 
     function carregarNotas() {
-      const txt = localStorage.getItem('notasAscCrypto');
-      if (txt) $('#notaUsuario').val(txt);
-      $('#notaUsuario').on('input', function() {
-        localStorage.setItem('notasAscCrypto', $(this).val());
+      const nota = localStorage.getItem('anotacoes') || '';
+      $('#notaUsuario').val(nota);
+      $('#notaUsuario').on('input', () => {
+        localStorage.setItem('anotacoes', $('#notaUsuario').val());
       });
     }
   </script>
