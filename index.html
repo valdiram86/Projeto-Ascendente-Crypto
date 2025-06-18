@@ -9,46 +9,49 @@
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
     h1, h3 { color: #333; margin-bottom: 10px; }
-    .filtros, .anotacoes { margin-bottom: 15px; }
     .filtros input { margin-right: 10px; padding: 6px; width: 150px; }
     .bloco { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
     .item { padding: 8px 12px; border-radius: 4px; font-weight: bold; }
     .green { background: #c8e6c9; }
     .yellow { background: #fff9c4; }
     .orange { background: #ffe0b2; }
-    #tabela_wrapper { background: white; padding: 10px; border-radius: 4px; }
     .anotacoes textarea { width: 100%; height: 80px; padding: 6px; }
+    #tabelaPrincipal_wrapper, #tabelaTopSubidas_wrapper {
+      background: white; padding: 10px; border-radius: 4px; margin-top: 30px;
+    }
   </style>
 </head>
 <body>
 
   <h1>🧭 Ascendente Crypto</h1>
-  
+
+  <h3>🧩 Aba Principal</h3>
   <div class="filtros">
-    <input type="text" id="filtroSimbolo" placeholder="Símbolo ou ID">
-    <input type="number" id="filtroMin" placeholder="Min Ranking">
-    <input type="number" id="filtroMax" placeholder="Max Ranking">
-    <button onclick="aplicarFiltros()">Filtrar</button>
-    <button onclick="resetarFiltros()">Limpar</button>
+    <input type="text" id="filtroSimboloPrincipal" placeholder="Símbolo ou ID">
+    <input type="number" id="filtroMinPrincipal" placeholder="Min Ranking">
+    <input type="number" id="filtroMaxPrincipal" placeholder="Max Ranking">
+    <button onclick="aplicarFiltros('Principal')">Filtrar</button>
+    <button onclick="resetarFiltros('Principal')">Limpar</button>
   </div>
+  <table id="tabelaPrincipal" class="display nowrap" style="width:100%">
+    <thead>
+      <tr>
+        <th>ID</th><th>Símbolo</th><th>Preço</th><th>Link</th>
+        <th>Ranking Anterior</th><th>Diferença</th><th>Ranking Atual</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div>
-    <h3>🎨 Top 5 por Cor</h3>
-    <div class="bloco" id="blocoCoresVerde"></div>
-    <div class="bloco" id="blocoCoresRestante"></div>
+  <h3>📊 Aba TopSubidas (↑ 5%+)</h3>
+  <div class="filtros">
+    <input type="text" id="filtroSimboloTop" placeholder="Símbolo ou ID">
+    <input type="number" id="filtroMinTop" placeholder="Min Ranking">
+    <input type="number" id="filtroMaxTop" placeholder="Max Ranking">
+    <button onclick="aplicarFiltros('TopSubidas')">Filtrar</button>
+    <button onclick="resetarFiltros('TopSubidas')">Limpar</button>
   </div>
-
-  <div>
-    <h3>🔥 Top Destaques (Avanços Consecutivos)</h3>
-    <div class="bloco" id="blocoAvanco"></div>
-  </div>
-
-  <div>
-    <h3>📈 Top 5 Avanço de Ranking</h3>
-    <div class="bloco" id="blocoRanking"></div>
-  </div>
-
-  <table id="tabela" class="display nowrap" style="width:100%">
+  <table id="tabelaTopSubidas" class="display nowrap" style="width:100%">
     <thead>
       <tr>
         <th>ID</th><th>Símbolo</th><th>Preço</th><th>Link</th>
@@ -71,71 +74,25 @@
 
   <script>
     const API = 'https://script.google.com/macros/s/AKfycbzmblBqPXtJ1nThn4nuz3vVaRqdoQtvt8Pr5s4zvXJSPGuXpFdUIv93fZYKPLYP4dd1/exec';
-    let dadosOriginais = [];
-    let tabela;
+    let dados = {}, tabelas = {};
 
     $(document).ready(async () => {
-      const resp = await fetch(API);
-      dadosOriginais = await resp.json();
-      montarPainel();
-      carregarTabela(dadosOriginais);
+      const resposta = await fetch(API);
+      dados = await resposta.json();
+      carregarTabela('Principal');
+      carregarTabela('TopSubidas');
       carregarNotas();
     });
 
-    function montarPainel() {
-      const verde = dadosOriginais.filter(m => m.diferenca >= 10).slice(0, 5);
-      const amarelo = dadosOriginais.filter(m => m.diferenca >= 5 && m.diferenca < 10).slice(0, 5);
-      const laranja = dadosOriginais.filter(m => m.diferenca > 0 && m.diferenca < 5).slice(0, 5);
-
-      const blocoVerde = document.getElementById('blocoCoresVerde');
-      verde.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'item green';
-        div.textContent = `${m.simbolo} (${m.diferenca})`;
-        blocoVerde.appendChild(div);
-      });
-
-      const blocoRestante = document.getElementById('blocoCoresRestante');
-      [...amarelo, ...laranja].forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'item ' + (m.diferenca >= 5 ? 'yellow' : 'orange');
-        div.textContent = `${m.simbolo} (${m.diferenca})`;
-        blocoRestante.appendChild(div);
-      });
-
-      const destaques = dadosOriginais
-        .filter(m => typeof m.status === 'string' && m.status.includes('🔼'))
-        .sort((a, b) => b.status.length - a.status.length)
-        .slice(0, 5);
-      const blocoAvanco = document.getElementById('blocoAvanco');
-      destaques.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        div.textContent = `${m.simbolo} ${m.status}`;
-        blocoAvanco.appendChild(div);
-      });
-
-      const topRanking = [...dadosOriginais]
-        .sort((a, b) => b.diferenca - a.diferenca)
-        .filter(m => m.diferenca > 0)
-        .slice(0, 5);
-      const blocoRanking = document.getElementById('blocoRanking');
-      topRanking.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        div.textContent = `${m.simbolo} (+${m.diferenca})`;
-        blocoRanking.appendChild(div);
-      });
-    }
-
-    function carregarTabela(dados) {
-      tabela = $('#tabela').DataTable({
-        data: dados.filter(m => m.diferenca > 0),
+    function carregarTabela(aba) {
+      const idTabela = aba === 'Principal' ? '#tabelaPrincipal' : '#tabelaTopSubidas';
+      tabelas[aba] = $(idTabela).DataTable({
+        data: dados[aba],
         columns: [
           { data: 'id' },
           { data: 'simbolo' },
           { data: 'preco', render: v => '$' + parseFloat(v).toFixed(4) },
-          { data: 'link', render: v => '<a href="'+v+'" target="_blank">🔗</a>' },
+          { data: 'link', render: v => `<a href="${v}" target="_blank">🔗</a>` },
           { data: 'rankingAnterior' },
           { data: 'diferenca' },
           { data: 'rankingAtual' },
@@ -156,10 +113,11 @@
       });
     }
 
-    function aplicarFiltros() {
-      const sim = $('#filtroSimbolo').val().toUpperCase();
-      const min = parseInt($('#filtroMin').val()) || -Infinity;
-      const max = parseInt($('#filtroMax').val()) || Infinity;
+    function aplicarFiltros(aba) {
+      const sim = $(`#filtroSimbolo${aba}`).val().toUpperCase();
+      const min = parseInt($(`#filtroMin${aba}`).val()) || -Infinity;
+      const max = parseInt($(`#filtroMax${aba}`).val()) || Infinity;
+      const tabela = tabelas[aba];
       tabela.column(1).search(sim);
       tabela.draw();
       tabela.rows().every(rowIdx => {
@@ -172,8 +130,9 @@
       });
     }
 
-    function resetarFiltros() {
-      $('#filtroSimbolo, #filtroMin, #filtroMax').val('');
+    function resetarFiltros(aba) {
+      $(`#filtroSimbolo${aba}, #filtroMin${aba}, #filtroMax${aba}`).val('');
+      const tabela = tabelas[aba];
       tabela.search('').columns().search('').draw();
       tabela.rows().every(rowIdx => $(tabela.row(rowIdx).node()).show());
     }
